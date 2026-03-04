@@ -39,9 +39,7 @@ Create Sui account and setup CLI environment.
 $ sui client
 ```
 
-If this is the first time running the `sui client` CLI tool, it asks you to provide a Sui full node server URL and a meaningful environment alias. It also generates an address with a random key pair in `sui.keystore` and a config `client.yaml`.
-
-By default, the `client.yaml` and `sui.keystore` files are located in `~/.sui/sui_config`. For more information, refer to the [Sui client CLI tutorial](/references/cli/client.mdx).
+If this is the first time running the `sui client` CLI tool, it asks you to provide a Sui full node server URL (or press enter for the default Testnet), select an encryption scheme to generate an address, and stores the configuration in a `client.yaml` file. For more information, refer to the [Sui client CLI tutorial](/references/cli/client.mdx).
 
 If this is not your first time running `sui client`, then you already have a `client.yaml` file in your local environment. If you'd like to create a new address for this tutorial, use the command:
 
@@ -110,7 +108,7 @@ There are two ways to return unused Testnet SUI tokens:
 
 - Connect your wallet to the online faucet, and click the **Return tokens to faucet** button. Approve the transaction using your wallet and your SUI tokens are returned to the pool.
 
-- If you prefer not to connect your wallet, send the tokens to the address `0x7a9d19d4c210663926eb549da59a54e25777fef63161bfccda08277b58b4212e` via a [separate transaction](/guides/developer/sui-101/sign-and-send-txn.mdx).
+- If you prefer not to connect your wallet, send the tokens to the address `0x7a9d19d4c210663926eb549da59a54e25777fef63161bfccda08277b58b4212e` via a [separate transaction](/guides/developer/transactions/sign-and-send-txn.mdx).
 
 ## Alternative methods for getting SUI tokens {#alternative-faucets}
 
@@ -176,20 +174,20 @@ await requestSuiFromFaucetV2({
 
 ## SUI tokens on a local network
 
-If you are running a local Sui network, you can get SUI tokens from your local faucet. See the [Connect to a Local Network](/guides/developer/sui-101/local-network.mdx#use-the-local-faucet) topic for details.
+If you are running a local Sui network, you can get SUI tokens from your local faucet. See the [Connect to a Local Network](/guides/developer/getting-started/local-network.mdx#use-the-local-faucet) topic for details.
 
 <div className="next-steps-module">
   <div className="next-steps-header">
     <h3>Next steps</h3>
   </div>
   <div className="next-steps-grid">
-        <Card 
+        <Card className="plausible-event-name=faucet+hello+button"
       title="Hello, World!" 
       href="/guides/developer/getting-started/hello-world"
     >
       Clone and build the "Hello, World!" project.
     </Card>
-    <Card 
+    <Card className="plausible-event-name=faucet+apps+button"
       title="View More Example Apps" 
       href="/guides/developer/app-examples"
     >
