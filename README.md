@@ -56,33 +56,60 @@ sui-pilot is also a full Claude Code plugin that transforms Claude into a Sui/Mo
 
 ### As Claude Code Plugin
 
-#### Prerequisites
-
-- Node.js 18+
-- pnpm
-- move-analyzer (for LSP features)
-
-#### Install move-analyzer
-
-```bash
-cargo install --git https://github.com/MystenLabs/sui.git sui-move-analyzer
-```
-
-#### Install the Plugin
+#### Quick Setup (Recommended)
 
 ```bash
 # Clone to plugins directory
 cd ~/.claude/plugins
 git clone https://github.com/alilloig/sui-pilot.git
 
-# Build MCP server
-cd sui-pilot/mcp/move-lsp-mcp
+# Run automated setup
+cd sui-pilot
+./scripts/setup.sh
+```
+
+The setup script will:
+- Verify Node.js 18+ and pnpm are installed
+- Build the MCP server
+- Run tests to verify everything works
+- Optionally install move-analyzer (prompts for confirmation)
+
+#### Manual Installation
+
+##### Prerequisites
+
+| Requirement | Purpose | Check |
+|-------------|---------|-------|
+| Node.js 18+ | MCP server runtime | `node --version` |
+| pnpm | Package management | `pnpm --version` |
+| Rust/Cargo | Building move-analyzer | `cargo --version` |
+| move-analyzer | LSP features | `which move-analyzer` |
+
+##### Install move-analyzer
+
+move-analyzer is the Sui Move language server that provides diagnostics, hover, completions, and navigation. Without it, the MCP tools will return graceful errors but won't provide LSP functionality.
+
+```bash
+# Install from official MystenLabs Sui repository
+cargo install --git https://github.com/MystenLabs/sui.git --branch main sui-move-lsp
+```
+
+This builds and installs the `move-analyzer` binary from the official Sui repository.
+
+> **Note**: This is a Rust build that compiles ~500 crates. Takes ~5-10 minutes on first build. Requires ~1GB disk space.
+
+##### Build MCP Server
+
+```bash
+cd ~/.claude/plugins/sui-pilot/mcp/move-lsp-mcp
 pnpm install
 pnpm build
-
-# Register with Claude Code
-claude plugin add ~/.claude/plugins/sui-pilot
+pnpm test  # Should show 80+ tests passing
 ```
+
+##### Restart Claude Code
+
+After installation, restart Claude Code completely (close and reopen). The MCP server starts on session launch, not on plugin reload.
 
 ---
 
@@ -193,10 +220,59 @@ sui-pilot/
 
 ## Requirements
 
-- **Node.js**: 18+ (for MCP server)
-- **pnpm**: For package management
-- **move-analyzer**: For LSP features (optional but recommended)
-- **Claude Code**: Plugin host environment
+| Component | Version | Required | Notes |
+|-----------|---------|----------|-------|
+| Node.js | 18+ | Yes | MCP server runtime |
+| pnpm | Any | Yes | Package management (`npm i -g pnpm`) |
+| Rust/Cargo | Latest | For LSP | Only needed to build move-analyzer |
+| move-analyzer | Latest | For LSP | Provides actual language intelligence |
+| Claude Code | Latest | Yes | Plugin host environment |
+
+---
+
+## Troubleshooting
+
+### MCP tools not appearing
+
+After installing the plugin, you must **restart Claude Code completely** (close and reopen the app/terminal). MCP servers are launched at session start.
+
+Verify the `.mcp.json` file exists at the plugin root:
+```bash
+cat ~/.claude/plugins/sui-pilot/.mcp.json
+```
+
+### LSP tools return "move-analyzer not found"
+
+Install move-analyzer from the official Sui repository:
+```bash
+cargo install --git https://github.com/MystenLabs/sui.git --branch main sui-move-lsp
+```
+
+Verify it's in your PATH:
+```bash
+which move-analyzer
+```
+
+### MCP server fails to start
+
+Check the build:
+```bash
+cd ~/.claude/plugins/sui-pilot/mcp/move-lsp-mcp
+ls dist/index.js  # Should exist
+pnpm test         # Should pass
+```
+
+Rebuild if needed:
+```bash
+pnpm install && pnpm build
+```
+
+### Tests fail
+
+Ensure you have the correct Node.js version:
+```bash
+node --version  # Should be 18+
+```
 
 ---
 
