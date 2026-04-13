@@ -49,14 +49,32 @@ else
     log_success "pnpm installed"
 fi
 
-# Check Rust/Cargo (needed for move-analyzer)
-if command -v cargo &> /dev/null; then
-    log_success "Cargo $(cargo --version | cut -d' ' -f2) found"
-    RUST_AVAILABLE=true
+# Check suiup (Sui toolchain manager)
+SUIUP_AVAILABLE=false
+if command -v suiup &> /dev/null; then
+    log_success "suiup $(suiup --version 2>/dev/null || echo 'installed') found"
+    SUIUP_AVAILABLE=true
 else
-    log_warn "Rust/Cargo not found. move-analyzer requires Rust."
-    log_warn "Install Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
-    RUST_AVAILABLE=false
+    log_warn "suiup not found."
+    echo ""
+    echo "suiup is the recommended way to install sui and move-analyzer."
+    echo "Install it with:"
+    echo "  curl -fsSL https://sui.io/install.sh | sh"
+    echo ""
+    read -p "Install suiup now? [y/N] " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        log_info "Installing suiup..."
+        curl -fsSL https://sui.io/install.sh | sh
+        export PATH="$HOME/.local/bin:$PATH"
+        if command -v suiup &> /dev/null; then
+            log_success "suiup installed"
+            SUIUP_AVAILABLE=true
+        else
+            log_warn "suiup installed but not in PATH. Add to your shell profile:"
+            echo '  export PATH="$HOME/.local/bin:$PATH"'
+        fi
+    fi
 fi
 
 # Build MCP server
@@ -79,28 +97,66 @@ log_success "Tests passed"
 
 # Check/Install move-analyzer
 echo ""
+check_version_match() {
+    if command -v sui &> /dev/null && command -v move-analyzer &> /dev/null; then
+        SUI_VERSION=$(sui --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        MA_VERSION=$(move-analyzer --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        if [ "$SUI_VERSION" != "$MA_VERSION" ]; then
+            log_warn "Version mismatch detected!"
+            log_warn "  sui: $SUI_VERSION"
+            log_warn "  move-analyzer: $MA_VERSION"
+            log_warn "This will cause LSP crashes. Update both to the same version:"
+            echo "  suiup update sui"
+            echo "  suiup update move-analyzer"
+            return 1
+        else
+            log_success "Versions match: $SUI_VERSION"
+            return 0
+        fi
+    fi
+    return 0
+}
+
 if command -v move-analyzer &> /dev/null; then
-    log_success "move-analyzer found at $(which move-analyzer)"
+    MA_PATH=$(which move-analyzer)
+    log_success "move-analyzer found at $MA_PATH"
+
+    # Warn if using cargo version instead of suiup
+    if [[ "$MA_PATH" == *".cargo"* ]] && [ "$SUIUP_AVAILABLE" = true ]; then
+        log_warn "Using cargo-installed move-analyzer (may cause version mismatches)"
+        log_warn "Consider using suiup version instead:"
+        echo "  mv ~/.cargo/bin/move-analyzer ~/.cargo/bin/move-analyzer.bak"
+        echo "  suiup install move-analyzer"
+    fi
+
+    check_version_match
 else
-    if [ "$RUST_AVAILABLE" = true ]; then
+    if [ "$SUIUP_AVAILABLE" = true ]; then
         log_warn "move-analyzer not found"
         echo ""
-        read -p "Install move-analyzer now? (takes ~2-3 minutes) [y/N] " -n 1 -r
+        read -p "Install move-analyzer via suiup? [Y/n] " -n 1 -r
         echo ""
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            log_info "Installing move-analyzer from MystenLabs/sui (this may take 5-10 minutes)..."
-            cargo install --git https://github.com/MystenLabs/sui.git --branch main sui-move-lsp
+        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+            log_info "Installing move-analyzer..."
+            suiup install move-analyzer
             log_success "move-analyzer installed"
+            check_version_match
         else
             log_warn "Skipped move-analyzer installation"
             log_warn "LSP tools will return errors until move-analyzer is installed"
             echo ""
             echo "To install later:"
-            echo "  cargo install --git https://github.com/MystenLabs/sui.git --branch main sui-move-lsp"
+            echo "  suiup install move-analyzer"
         fi
     else
-        log_warn "Cannot install move-analyzer without Rust"
+        log_warn "Cannot install move-analyzer without suiup"
         log_warn "LSP tools will return errors until move-analyzer is installed"
+        echo ""
+        echo "To install suiup:"
+        echo "  curl -fsSL https://sui.io/install.sh | sh"
+        echo ""
+        echo "Then install move-analyzer:"
+        echo "  suiup install move-analyzer"
     fi
 fi
 
@@ -118,7 +174,7 @@ if command -v move-analyzer &> /dev/null; then
     log_success "All LSP features available"
 else
     log_warn "LSP features require move-analyzer"
-    echo "  Install: cargo install --git https://github.com/movebit/move-analyzer.git --branch sui-move-analyzer"
+    echo "  Install: suiup install move-analyzer"
 fi
 
 echo ""

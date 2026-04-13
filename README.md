@@ -82,21 +82,56 @@ The setup script will:
 |-------------|---------|-------|
 | Node.js 18+ | MCP server runtime | `node --version` |
 | pnpm | Package management | `pnpm --version` |
-| Rust/Cargo | Building move-analyzer | `cargo --version` |
-| move-analyzer | LSP features | `which move-analyzer` |
+| suiup | Sui toolchain manager | `suiup --version` |
+| sui + move-analyzer | Sui CLI and LSP | `sui --version && move-analyzer --version` |
 
-##### Install move-analyzer
+##### Install suiup (Sui Toolchain Manager)
 
-move-analyzer is the Sui Move language server that provides diagnostics, hover, completions, and navigation. Without it, the MCP tools will return graceful errors but won't provide LSP functionality.
+[suiup](https://docs.sui.io/guides/developer/getting-started/sui-install) is the official Sui version manager, similar to rustup for Rust. It manages `sui`, `move-analyzer`, and other Sui tools.
+
+```bash
+# Install suiup
+curl -fsSL https://sui.io/install.sh | sh
+
+# Add to PATH (add this to your shell profile)
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+##### Install sui and move-analyzer
+
+> **Important**: `sui` and `move-analyzer` must be the **same version**. Version mismatches cause LSP crashes.
+
+```bash
+# Install latest sui from testnet release
+suiup install sui
+
+# Install matching move-analyzer
+suiup install move-analyzer
+
+# Verify versions match
+sui --version          # e.g., sui 1.69.2-...
+move-analyzer --version  # e.g., move-analyzer 1.69.2-...
+```
+
+If you have an old `move-analyzer` installed via cargo that shadows the suiup version:
+```bash
+# Check which one is active
+which move-analyzer
+
+# If it shows ~/.cargo/bin/move-analyzer, rename it
+mv ~/.cargo/bin/move-analyzer ~/.cargo/bin/move-analyzer.bak
+```
+
+##### Alternative: Install via Cargo (Not Recommended)
+
+If you can't use suiup, you can build from source. This is slower and risks version mismatches:
 
 ```bash
 # Install from official MystenLabs Sui repository
-cargo install --git https://github.com/MystenLabs/sui.git --branch main sui-move-lsp
+cargo install --git https://github.com/MystenLabs/sui.git move-analyzer
 ```
 
-This builds and installs the `move-analyzer` binary from the official Sui repository.
-
-> **Note**: This is a Rust build that compiles ~500 crates. Takes ~5-10 minutes on first build. Requires ~1GB disk space.
+> **Note**: This compiles ~500 crates. Takes ~5-10 minutes. Requires ~1GB disk space.
 
 ##### Build MCP Server
 
@@ -224,8 +259,8 @@ sui-pilot/
 |-----------|---------|----------|-------|
 | Node.js | 18+ | Yes | MCP server runtime |
 | pnpm | Any | Yes | Package management (`npm i -g pnpm`) |
-| Rust/Cargo | Latest | For LSP | Only needed to build move-analyzer |
-| move-analyzer | Latest | For LSP | Provides actual language intelligence |
+| suiup | Latest | For LSP | Sui toolchain manager (`curl -fsSL https://sui.io/install.sh \| sh`) |
+| sui + move-analyzer | Same version | For LSP | **Must match versions** - install via suiup |
 | Claude Code | Latest | Yes | Plugin host environment |
 
 ---
@@ -243,15 +278,41 @@ cat ~/.claude/plugins/sui-pilot/.mcp.json
 
 ### LSP tools return "move-analyzer not found"
 
-Install move-analyzer from the official Sui repository:
+Install move-analyzer using suiup (recommended):
 ```bash
-cargo install --git https://github.com/MystenLabs/sui.git --branch main sui-move-lsp
+suiup install move-analyzer
 ```
 
 Verify it's in your PATH:
 ```bash
 which move-analyzer
+move-analyzer --version
 ```
+
+If `which` returns `~/.cargo/bin/move-analyzer` instead of `~/.local/bin/move-analyzer`, you have an old cargo-installed version shadowing the suiup one. Rename or remove it:
+```bash
+mv ~/.cargo/bin/move-analyzer ~/.cargo/bin/move-analyzer.bak
+```
+
+### LSP crashes with "Max restarts exceeded"
+
+This usually means **version mismatch** between `sui` and `move-analyzer`:
+
+```bash
+# Check versions - they should match
+sui --version
+move-analyzer --version
+```
+
+If they differ, update both to the same version:
+```bash
+suiup update sui
+suiup update move-analyzer
+suiup default set "sui@testnet-1.69.2"  # or latest
+suiup default set "move-analyzer@testnet-1.69.2"
+```
+
+After fixing versions, **restart Claude Code completely** to reset the crash counter.
 
 ### MCP server fails to start
 

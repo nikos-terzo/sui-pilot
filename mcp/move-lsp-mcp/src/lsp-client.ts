@@ -208,8 +208,8 @@ export class MoveLspClient {
     this.isUnhealthy = false;
 
     try {
-      // Spawn move-analyzer in LSP mode
-      this.process = spawn(this.binaryPath, ['language-server'], {
+      // Spawn move-analyzer in LSP mode (no args needed - it's an LSP server by default)
+      this.process = spawn(this.binaryPath, [], {
         stdio: ['pipe', 'pipe', 'pipe'],
         cwd: workspaceRoot,
       });
