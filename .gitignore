@@ -3,7 +3,6 @@
 .remember/
 
 # Binary assets — useless for AI text consumption
-*.png
 *.jpg
 *.jpeg
 *.gif
