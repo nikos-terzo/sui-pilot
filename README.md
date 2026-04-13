@@ -153,18 +153,32 @@ The `AGENTS.md` file is a compact, pipe-delimited index that any AI agent can pa
 
 ## Keeping Docs Up to Date
 
-Sync scripts pull the latest documentation from upstream:
+### Why Local Docs?
 
-```bash
-./sync-docs.sh           # Pull from MystenLabs repos
-./generate-agents-md.sh  # Regenerate AGENTS.md index
-```
+LLMs have a knowledge cutoff. Sui Move evolves rapidly — new framework methods, changed APIs, deprecated patterns. An LLM trained 6 months ago will confidently generate code that no longer compiles or follows outdated conventions.
+
+sui-pilot solves this by bundling documentation locally. The agent reads current docs before generating code, not stale training data.
+
+### Why Sync from Upstream?
+
+The docs are extracted directly from the official MystenLabs repositories — the same source that powers docs.sui.io, docs.walrus.site, and docs.seal.xyz. This ensures accuracy and consistency with what developers see in the official documentation.
 
 | Ecosystem | Repository                                          | Doc Path        |
 | --------- | --------------------------------------------------- | --------------- |
 | Sui       | [MystenLabs/sui](https://github.com/MystenLabs/sui) | `docs/content/` |
 | Walrus    | [MystenLabs/walrus](https://github.com/MystenLabs/walrus) | `docs/content/` |
 | Seal      | [MystenLabs/seal](https://github.com/MystenLabs/seal) | `docs/content/` |
+
+### Updating the Docs
+
+Run these scripts periodically (e.g., monthly, or before a major project):
+
+```bash
+./sync-docs.sh           # Pull latest from MystenLabs repos
+./generate-docs-index.sh # Regenerate AGENTS.md index
+```
+
+The sync script clones or pulls each upstream repo and copies the `docs/content/` directory into the corresponding `.{ecosystem}-docs/` folder. The index script walks these directories and generates `AGENTS.md` — a compact, pipe-delimited file list that AI agents parse to discover available documentation.
 
 ---
 
