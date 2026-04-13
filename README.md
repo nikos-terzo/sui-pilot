@@ -83,21 +83,12 @@ The setup script will:
 
 ##### Prerequisites
 
-<<<<<<< HEAD
 | Requirement | Purpose | Check |
 |-------------|---------|-------|
 | Node.js 18+ | MCP server runtime | `node --version` |
 | pnpm | Package management | `pnpm --version` |
 | suiup | Sui toolchain manager | `suiup --version` |
 | sui + move-analyzer | Sui CLI and LSP | `sui --version && move-analyzer --version` |
-=======
-| Requirement   | Purpose                | Check                 |
-| ------------- | ---------------------- | --------------------- |
-| Node.js 18+   | MCP server runtime     | `node --version`      |
-| pnpm          | Package management     | `pnpm --version`      |
-| Rust/Cargo    | Building move-analyzer | `cargo --version`     |
-| move-analyzer | LSP features           | `which move-analyzer` |
->>>>>>> ff14854 (pilot whaleclear)
 
 ##### Install suiup (Sui Toolchain Manager)
 
@@ -269,7 +260,6 @@ sui-pilot/
 
 ## Requirements
 
-<<<<<<< HEAD
 | Component | Version | Required | Notes |
 |-----------|---------|----------|-------|
 | Node.js | 18+ | Yes | MCP server runtime |
@@ -277,15 +267,6 @@ sui-pilot/
 | suiup | Latest | For LSP | Sui toolchain manager (`curl -fsSL https://sui.io/install.sh \| sh`) |
 | sui + move-analyzer | Same version | For LSP | **Must match versions** - install via suiup |
 | Claude Code | Latest | Yes | Plugin host environment |
-=======
-| Component     | Version | Required | Notes                                 |
-| ------------- | ------- | -------- | ------------------------------------- |
-| Node.js       | 18+     | Yes      | MCP server runtime                    |
-| pnpm          | Any     | Yes      | Package management (`npm i -g pnpm`)  |
-| Rust/Cargo    | Latest  | For LSP  | Only needed to build move-analyzer    |
-| move-analyzer | Latest  | For LSP  | Provides actual language intelligence |
-| Claude Code   | Latest  | Yes      | Plugin host environment               |
->>>>>>> ff14854 (pilot whaleclear)
 
 ---
 
@@ -303,12 +284,7 @@ cat ~/.claude/plugins/sui-pilot/.mcp.json
 
 ### LSP tools return "move-analyzer not found"
 
-<<<<<<< HEAD
 Install move-analyzer using suiup (recommended):
-=======
-Install move-analyzer from the official Sui repository:
-
->>>>>>> ff14854 (pilot whaleclear)
 ```bash
 suiup install move-analyzer
 ```
