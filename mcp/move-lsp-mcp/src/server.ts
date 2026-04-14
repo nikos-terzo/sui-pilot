@@ -12,7 +12,7 @@ import { resolve } from 'path';
 import { MoveLspClient } from './lsp-client.js';
 import { discoverBinary, getBinaryVersion } from './binary-discovery.js';
 import { parseConfig, validateConfig } from './config.js';
-import { log, setLogLevel, info, error } from './logger.js';
+import { log, setLogLevel, info, error, LogLevel } from './logger.js';
 import { WorkspaceResolver } from './workspace.js';
 import { DocumentStore } from './document-store.js';
 import { checkVersionCompatibility } from './version.js';
@@ -200,6 +200,9 @@ const TOOL_DEFINITIONS = [
   },
 ] as const;
 
+/** Tool names derived from TOOL_DEFINITIONS for compile-time safety */
+type ToolName = typeof TOOL_DEFINITIONS[number]['name'];
+
 // Module-level state for binary discovery (shared across server instances)
 let globalBinaryPath: string | null = null;
 let globalConfig: ReturnType<typeof parseConfig> | null = null;
@@ -212,7 +215,7 @@ export async function initializeBinaryOnStartup(): Promise<void> {
   if (!globalConfig) {
     globalConfig = parseConfig();
     validateConfig(globalConfig);
-    setLogLevel(globalConfig.moveLspLogLevel as any);
+    setLogLevel(globalConfig.moveLspLogLevel as LogLevel);
   }
 
   // Check VERSION.json compatibility at startup
@@ -240,7 +243,7 @@ export function createServer(): Server {
   if (!globalConfig) {
     globalConfig = parseConfig();
     validateConfig(globalConfig);
-    setLogLevel(globalConfig.moveLspLogLevel as any);
+    setLogLevel(globalConfig.moveLspLogLevel as LogLevel);
   }
   const config = globalConfig;
 
@@ -383,51 +386,12 @@ export function createServer(): Server {
 
     const resolvedPath = resolve(filePath);
 
-    // Check if file exists (for file-on-disk mode)
-    if (!content && !existsSync(resolvedPath)) {
-      throw new MoveLspError(`File not found: ${resolvedPath}`, FILE_NOT_FOUND);
-    }
-
-    // Find workspace root using cached resolver
-    let workspaceRoot: string;
-    try {
-      workspaceRoot = workspaceResolver.resolve(resolvedPath);
-    } catch (err) {
-      if (err instanceof NoWorkspaceError) {
-        throw err;
-      }
-      throw new MoveLspError(`Failed to find workspace: ${err}`, NO_WORKSPACE);
-    }
-
-    // Initialize LSP client
-    await initializeLspClient(workspaceRoot);
-    if (!lspClient) {
-      throw new Error('Failed to initialize LSP client');
-    }
-
-    // Read file content if not provided
-    const fileContent = content || readFileSync(resolvedPath, 'utf8');
-    const fileUri = `file://${resolvedPath}`;
-
-    // Track document state and use appropriate LSP notification
-    const existingDoc = documentStore.get(fileUri);
-    if (existingDoc) {
-      // Document already open - use didChange with incremented version
-      const newVersion = existingDoc.version + 1;
-      documentStore.didChange(fileUri, fileContent, newVersion);
-      await lspClient.didChange(fileUri, newVersion, [{ text: fileContent }]);
-    } else {
-      // New document - use didOpen
-      documentStore.didOpen(fileUri, fileContent, 1);
-      await lspClient.didOpen(fileUri, fileContent);
-    }
-
-    // Wait briefly for LSP server to process and send diagnostics
-    // publishDiagnostics is async and may arrive after didOpen returns
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Use shared document preparation with longer delay for diagnostics
+    // Diagnostics needs 500ms for publishDiagnostics to arrive
+    const { workspaceRoot, fileUri } = await prepareDocument(resolvedPath, content, 500);
 
     // Retrieve diagnostics from LSP client cache
-    const lspDiagnostics = lspClient.getDiagnostics(fileUri);
+    const lspDiagnostics = lspClient!.getDiagnostics(fileUri);
 
     // Transform LSP diagnostics to our output format
     const diagnostics = lspDiagnostics.map(d => ({
@@ -462,10 +426,12 @@ export function createServer(): Server {
   /**
    * Prepare document for LSP operations
    * Opens or updates document in LSP client based on provided content or disk file
+   * @param delay - milliseconds to wait for LSP processing (default 100, use 500 for diagnostics)
    */
   async function prepareDocument(
     resolvedPath: string,
-    content: string | undefined
+    content: string | undefined,
+    delay = 100
   ): Promise<{ workspaceRoot: string; fileUri: string; fileContent: string }> {
     // Check if file exists (for file-on-disk mode)
     if (!content && !existsSync(resolvedPath)) {
@@ -507,13 +473,16 @@ export function createServer(): Server {
     }
 
     // Wait briefly for LSP server to process
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(r => setTimeout(r, delay));
 
     return { workspaceRoot, fileUri, fileContent };
   }
 
-  // Handle move_hover tool
-  async function handleMoveHover(args: any): Promise<HoverResponse> {
+  /**
+   * Validate position arguments (filePath, line, character)
+   * Throws MoveLspError if validation fails
+   */
+  function validatePositionArgs(args: any): { filePath: string; line: number; character: number; content?: string } {
     const { filePath, line, character, content } = args;
 
     if (!filePath || typeof filePath !== 'string') {
@@ -525,6 +494,13 @@ export function createServer(): Server {
     if (typeof character !== 'number' || character < 0) {
       throw new MoveLspError('character is required and must be a non-negative number', INVALID_FILE_PATH);
     }
+
+    return { filePath, line, character, content };
+  }
+
+  // Handle move_hover tool
+  async function handleMoveHover(args: any): Promise<HoverResponse> {
+    const { filePath, line, character, content } = validatePositionArgs(args);
 
     const resolvedPath = resolve(filePath);
     const { workspaceRoot, fileUri } = await prepareDocument(resolvedPath, content);
@@ -546,17 +522,7 @@ export function createServer(): Server {
 
   // Handle move_completions tool
   async function handleMoveCompletions(args: any): Promise<CompletionsResponse> {
-    const { filePath, line, character, content } = args;
-
-    if (!filePath || typeof filePath !== 'string') {
-      throw new MoveLspError('filePath is required and must be a string', INVALID_FILE_PATH);
-    }
-    if (typeof line !== 'number' || line < 0) {
-      throw new MoveLspError('line is required and must be a non-negative number', INVALID_FILE_PATH);
-    }
-    if (typeof character !== 'number' || character < 0) {
-      throw new MoveLspError('character is required and must be a non-negative number', INVALID_FILE_PATH);
-    }
+    const { filePath, line, character, content } = validatePositionArgs(args);
 
     const resolvedPath = resolve(filePath);
     const { workspaceRoot, fileUri } = await prepareDocument(resolvedPath, content);
@@ -579,17 +545,7 @@ export function createServer(): Server {
   // Handle move_goto_definition tool
   // Cross-package goto-definition may not resolve due to move-analyzer limitations on multi-package workspaces
   async function handleMoveGotoDefinition(args: any): Promise<GotoDefinitionResponse> {
-    const { filePath, line, character, content } = args;
-
-    if (!filePath || typeof filePath !== 'string') {
-      throw new MoveLspError('filePath is required and must be a string', INVALID_FILE_PATH);
-    }
-    if (typeof line !== 'number' || line < 0) {
-      throw new MoveLspError('line is required and must be a non-negative number', INVALID_FILE_PATH);
-    }
-    if (typeof character !== 'number' || character < 0) {
-      throw new MoveLspError('character is required and must be a non-negative number', INVALID_FILE_PATH);
-    }
+    const { filePath, line, character, content } = validatePositionArgs(args);
 
     const resolvedPath = resolve(filePath);
     const { workspaceRoot, fileUri } = await prepareDocument(resolvedPath, content);
@@ -614,30 +570,34 @@ export function createServer(): Server {
   }
 
   // Tool handler dispatch map
-  const toolHandlers: Record<string, (args: any) => Promise<any>> = {
+  const toolHandlers: Record<ToolName, (args: any) => Promise<any>> = {
     move_diagnostics: handleMoveDiagnostics,
     move_hover: handleMoveHover,
     move_completions: handleMoveCompletions,
     move_goto_definition: handleMoveGotoDefinition,
   };
 
+  /** Type guard for valid tool names */
+  function isValidToolName(name: string): name is ToolName {
+    return name in toolHandlers;
+  }
+
   /**
    * Dispatch a tool call and return the result
    * Shared between production handler and test helper
    */
   async function dispatchToolCall(name: string, args: any): Promise<any> {
-    const handler = toolHandlers[name];
-    if (!handler) {
+    if (!isValidToolName(name)) {
       throw new Error(`Unknown tool: ${name}`);
     }
-    return handler(args || {});
+    return toolHandlers[name](args || {});
   }
 
   /**
    * Format a MoveLspError for MCP response
    * Shared between production handler and test helper
    */
-  function formatErrorResponse(error: MoveLspError, args: any) {
+  function formatErrorResponse(err: MoveLspError, args: any): { content: { type: string; text: string }[]; isError: true } {
     let errorWorkspaceRoot: string | null = null;
     try {
       const filePath = args?.filePath;
@@ -655,15 +615,36 @@ export function createServer(): Server {
           text: JSON.stringify({
             workspaceRoot: errorWorkspaceRoot,
             error: {
-              code: error.code,
-              message: error.message,
-              details: error.details,
+              code: err.code,
+              message: err.message,
+              details: err.details,
             },
           }, null, 2),
         },
       ],
       isError: true,
     };
+  }
+
+  /**
+   * Handle a tool call request with dispatch, serialization, and error handling
+   * Shared between production handler and test helper
+   */
+  async function handleToolRequest(name: string, args: any): Promise<{ content: { type: string; text: string }[]; isError?: true }> {
+    try {
+      const result = await dispatchToolCall(name, args);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (err) {
+      log('error', `Tool ${name} failed`, { error: err, args });
+
+      if (err instanceof MoveLspError) {
+        return formatErrorResponse(err, args);
+      }
+
+      throw err;
+    }
   }
 
   // Register tools
@@ -673,26 +654,7 @@ export function createServer(): Server {
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
-
-    try {
-      const result = await dispatchToolCall(name, args);
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-      };
-    } catch (error) {
-      log('error', `Tool ${name} failed`, { error, args });
-
-      if (error instanceof MoveLspError) {
-        return formatErrorResponse(error, args);
-      }
-
-      throw error;
-    }
+    return handleToolRequest(name, args);
   });
 
   // Cleanup on server shutdown
@@ -716,21 +678,7 @@ export function createServer(): Server {
     if (method === 'tools/call') {
       return async (request: any) => {
         const { name, arguments: args } = request.params;
-
-        try {
-          const result = await dispatchToolCall(name, args);
-          return {
-            content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
-          };
-        } catch (error) {
-          log('error', `Tool ${name} failed`, { error, args });
-
-          if (error instanceof MoveLspError) {
-            return formatErrorResponse(error, args);
-          }
-
-          throw error;
-        }
+        return handleToolRequest(name, args);
       };
     }
 
