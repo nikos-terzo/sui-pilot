@@ -12,7 +12,7 @@ A Claude Code plugin that transforms Claude into a Sui/Move development expert.
 
 Sui Move evolves rapidly. LLM training data goes stale fast, and agents confidently generate outdated patterns, deprecated APIs, and incorrect syntax.
 
-sui-pilot solves this by bundling **548 documentation files** from four Mysten Labs ecosystems directly into your Claude Code environment:
+sui-pilot solves this by bundling **548 documentation files** from four Mysten Labs repos directly into your Claude Code environment:
 
 | Ecosystem   | Files | Topics                                                                  |
 | ----------- | ----- | ----------------------------------------------------------------------- |
