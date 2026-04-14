@@ -1,0 +1,198 @@
+---
+title: Creating zkSend Links
+description: Create and customize zkSend claim links
+---
+
+<Callout type="warn">
+	Products and services that incorporate zkSend links may be subject to financial regulations,
+	including obtaining money transmitter licenses in jurisdictions where you provide your services.
+	It is the developer's responsibility to ensure compliance with all relevant laws and obtain any
+	necessary licenses. The information provided by Mysten Labs is not legal advice, and developers
+	should consult with a qualified legal professional to address their specific circumstances.
+</Callout>
+
+## Limitations
+
+- zkSend only supports Mainnet and Testnet at this time.
+- Objects within links must be publicly transferrable.
+
+## Create a link
+
+You can start creating your own zkSend link using the `linkBuilder` method on the zkSend client
+extension:
+
+```ts
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { zksend } from '@mysten/zksend';
+
+const client = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+}).$extend(zksend());
+
+const link = client.zksend.linkBuilder({
+	sender: '0x...',
+});
+```
+
+#### Adding SUI to the link
+
+You can add SUI to the link by calling `link.addClaimableMist()`. This method takes the following
+params:
+
+- **`amount`** (required) - The amount of MIST (the base unit of SUI) to add to the link.
+
+#### Adding non-SUI coins to the link
+
+You can add non-SUI coins to the link by calling `link.addClaimableBalance()`. This method takes the
+following params:
+
+- **`coinType`** (required) - The coin type of the coin to add to the link (e.g. `0x2::sui::SUI`).
+- **`amount`** (required) - The amount of the coin to add to the link. Represented in the base unit
+  of the coin.
+
+The SDK will automatically perform the necessary coin management logic to transfer the defined
+amount, such as merging and splitting coin objects.
+
+#### Adding objects to the link
+
+You can add a publicly-transferrable object to the link by calling `link.addClaimableObject()`. This
+method takes the following params:
+
+- **`id`** (required) - The ID of the object. This must be owned by the `sender` you configured when
+  creating the link.
+
+#### Adding objects created in the same transaction
+
+You can create objects to add to links in the same transaction the link is created in by using
+`link.addClaimableObjectRef()`
+
+- **`ref`** (required) - The reference to the object you want to add to the link.
+- **`type`** (required) - The move type of the object you are adding
+
+```ts
+import { Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+
+const link = client.zksend.linkBuilder({
+	sender: '0x...',
+});
+
+const newObject = tx.moveCall({
+	target: `${PACKAGE_ID}::your_module::mint`,
+});
+
+link.addClaimableObjectRef({
+	ref: newObject,
+	type: `${PACKAGE_ID}::your_module::YourType`,
+});
+
+// Adds the link creation transactions to the transaction
+link.createSendTransaction({
+	transaction: tx,
+});
+```
+
+#### Getting the link URL
+
+At any time, you can get the URL for the link by calling `link.getLink()`.
+
+## Submitting the link transaction
+
+Once you have built your zkSend link, you need to execute a transaction to transfer assets and make
+the link claimable.
+
+You can call the `link.createSendTransaction()` method, which returns a `Transaction` object that
+you can sign and submit to the blockchain.
+
+```ts
+const tx = await link.createSendTransaction();
+
+const { bytes, signature } = tx.sign({ client, signer: keypair });
+
+const result = await client.executeTransactionBlock({
+	transactionBlock: bytes,
+	signature,
+});
+```
+
+If you have a keypair you would like to send the transaction with, you can use the `create` method
+as shorthand for creating the send transaction, signing it, and submitting it to the blockchain.
+
+```ts
+await link.create({
+	signer: yourKeypair,
+	// Wait until the new link is ready to be indexed so it is claimable
+	waitForTransaction: true,
+});
+```
+
+## Claiming a link
+
+To claim a link via the SDK you can use the `loadLinkFromUrl` method:
+
+```ts
+// Load a link instance from a URL
+const link = await client.zksend.loadLinkFromUrl('https://zksend.com/claim#$abc...');
+
+// list what claimable assets the link has
+const { nfts, balances } = link.assets;
+
+// claim all the assets from the link
+await link.claimAssets(addressOfClaimer);
+```
+
+## Regenerating links
+
+If you lose a link you've created, you can re-generate the link (this can only done from the address
+that originally created the link):
+
+```ts
+// url will be the new link url
+const { url, transaction } = await link.createRegenerateTransaction(addressOfLinkCreator);
+
+// Execute the transaction to regenerate the link
+const result = await client.signAndExecuteTransaction({
+	transaction,
+	signer: keypair,
+});
+
+// Check transaction status
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Link regeneration failed: ${result.FailedTransaction.status.error?.message}`);
+}
+```
+
+## Bulk link creation
+
+To create multiple links in a single transaction, you can use `client.zksend.createLinks`:
+
+```ts
+const links = [];
+
+for (let i = 0; i < 10; i++) {
+	const link = client.zksend.linkBuilder({
+		sender: keypair.toSuiAddress(),
+	});
+
+	link.addClaimableMist(100n);
+	links.push(link);
+}
+
+const urls = links.map((link) => link.getLink());
+
+const tx = await client.zksend.createLinks({
+	links,
+});
+
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+
+// Check transaction status
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Link creation failed: ${result.FailedTransaction.status.error?.message}`);
+}
+```

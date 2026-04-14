@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# generate-agents-md.sh — Regenerate AGENTS.md index from local doc directories
+# generate-docs-index.sh — Regenerate AGENTS.md index from local doc directories
 #
-# Usage: ./generate-agents-md.sh
+# Usage: ./generate-docs-index.sh
 #
-# Walks .sui-docs/, .walrus-docs/, .seal-docs/ and produces a pipe-delimited
-# index that AI agents parse to discover available documentation.
+# Walks .sui-docs/, .walrus-docs/, .seal-docs/, .ts-sdk-docs/ and produces a
+# pipe-delimited index that AI agents parse to discover available documentation.
 
 set -euo pipefail
 
@@ -59,10 +59,12 @@ echo "Generating AGENTS.md..."
 sui_count=$(find .sui-docs -type f \( -name '*.mdx' -o -name '*.md' \) 2>/dev/null | wc -l | tr -d ' ')
 walrus_count=$(find .walrus-docs -type f \( -name '*.mdx' -o -name '*.md' \) 2>/dev/null | wc -l | tr -d ' ')
 seal_count=$(find .seal-docs -type f \( -name '*.mdx' -o -name '*.md' \) 2>/dev/null | wc -l | tr -d ' ')
+ts_sdk_count=$(find .ts-sdk-docs -type f \( -name '*.mdx' -o -name '*.md' \) 2>/dev/null | wc -l | tr -d ' ')
 
 echo "  Sui:    $sui_count files"
 echo "  Walrus: $walrus_count files"
 echo "  Seal:   $seal_count files"
+echo "  TS SDK: $ts_sdk_count files"
 
 # Generate indexes
 echo "  Building Sui index..."
@@ -73,6 +75,9 @@ walrus_index=$(generate_index ".walrus-docs")
 
 echo "  Building Seal index..."
 seal_index=$(generate_index ".seal-docs")
+
+echo "  Building TS SDK index..."
+ts_sdk_index=$(generate_index ".ts-sdk-docs")
 
 # Write AGENTS.md
 cat > "$OUTPUT" << 'HEADER'
@@ -87,6 +92,8 @@ HEADER
     printf '[Seal Docs Index]|root: ./.seal-docs|Seal is a decentralized secrets management protocol built on Sui. Search these docs for encryption, access control policies, key servers, and threshold cryptography on Sui.|%s' "$seal_index"
     printf '\n\n'
     printf '[Walrus Docs Index]|root: ./.walrus-docs|Walrus is a decentralized storage protocol built on Sui. Search these docs for blob storage, Walrus Sites, TypeScript SDK, HTTP API, and node operations.|%s' "$walrus_index"
+    printf '\n\n'
+    printf '[TS SDK Docs Index]|root: ./.ts-sdk-docs|TypeScript SDK documentation for Sui. Search these docs for dapp-kit, payment-kit, kiosk SDK, transactions, clients, React hooks, and frontend integration.|%s' "$ts_sdk_index"
     printf '\n<!-- AGENTS-MD-END -->\n'
 } > "$OUTPUT"
 
@@ -96,3 +103,4 @@ echo "Generated $OUTPUT ($size bytes)"
 echo "  Sui:    $sui_count files indexed"
 echo "  Walrus: $walrus_count files indexed"
 echo "  Seal:   $seal_count files indexed"
+echo "  TS SDK: $ts_sdk_count files indexed"

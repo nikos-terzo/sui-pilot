@@ -1,0 +1,16 @@
+{
+	"root": true,
+	"title": "dApp Kit",
+	"description": "Build Sui dApps with @mysten/dapp-kit-core and @mysten/dapp-kit-react",
+	"pages": [
+		"index",
+		"getting-started",
+		"dapp-kit-instance",
+		"state",
+		"actions",
+		"react",
+		"web-components",
+		"theming",
+		"legacy"
+	]
+}

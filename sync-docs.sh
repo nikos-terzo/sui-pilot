@@ -88,17 +88,18 @@ sync_repo() {
 echo "=== sui-pilot doc sync ==="
 echo ""
 
-sync_repo "MystenLabs" "sui"    "docs/content" ".sui-docs"    "Sui"
-sync_repo "MystenLabs" "walrus" "docs/content" ".walrus-docs"  "Walrus"
-sync_repo "MystenLabs" "seal"   "docs/content" ".seal-docs"    "Seal"
+sync_repo "MystenLabs" "sui"     "docs/content"          ".sui-docs"     "Sui"
+sync_repo "MystenLabs" "walrus"  "docs/content"          ".walrus-docs"  "Walrus"
+sync_repo "MystenLabs" "seal"    "docs/content"          ".seal-docs"    "Seal"
+sync_repo "MystenLabs" "ts-sdks" "packages/docs/content" ".ts-sdk-docs"  "TS SDK"
 
 echo ""
 echo "=== Sync complete ==="
 echo ""
 echo "File counts:"
-for dir in .sui-docs .walrus-docs .seal-docs; do
+for dir in .sui-docs .walrus-docs .seal-docs .ts-sdk-docs; do
     count=$(find "$dir" -type f \( -name '*.mdx' -o -name '*.md' \) 2>/dev/null | wc -l | tr -d ' ')
     echo "  $dir: $count MDX/MD files"
 done
 echo ""
-echo "Next: run ./generate-agents-md.sh to regenerate the AGENTS.md index"
+echo "Next: run ./generate-docs-index.sh to regenerate the AGENTS.md index"

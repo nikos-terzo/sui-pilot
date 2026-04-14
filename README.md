@@ -12,13 +12,14 @@ A Claude Code plugin that transforms Claude into a Sui/Move development expert.
 
 Sui Move evolves rapidly. LLM training data goes stale fast, and agents confidently generate outdated patterns, deprecated APIs, and incorrect syntax.
 
-sui-pilot solves this by bundling **434 documentation files** from three Mysten Labs ecosystems directly into your Claude Code environment:
+sui-pilot solves this by bundling **548 documentation files** from four Mysten Labs ecosystems directly into your Claude Code environment:
 
-| Ecosystem  | Files | Topics                                                                 |
-| ---------- | ----- | ---------------------------------------------------------------------- |
-| **Sui**    | 336   | Blockchain, Move language, objects, transactions, SDKs, DeFi standards |
-| **Walrus** | 84    | Decentralized blob storage, Walrus Sites, TypeScript SDK, HTTP API     |
-| **Seal**   | 14    | Secrets management, encryption, key servers, access control policies   |
+| Ecosystem   | Files | Topics                                                                  |
+| ----------- | ----- | ----------------------------------------------------------------------- |
+| **Sui**     | 336   | Blockchain, Move language, objects, transactions, SDKs, DeFi standards  |
+| **Walrus**  | 84    | Decentralized blob storage, Walrus Sites, HTTP API, node operations     |
+| **Seal**    | 14    | Secrets management, encryption, key servers, access control policies    |
+| **TS SDK**  | 114   | TypeScript SDK, dapp-kit, payment-kit, kiosk, React hooks, transactions |
 
 ---
 
@@ -163,11 +164,12 @@ sui-pilot solves this by bundling documentation locally. The agent reads current
 
 The docs are extracted directly from the official MystenLabs repositories — the same source that powers docs.sui.io, docs.walrus.site, and docs.seal.xyz. This ensures accuracy and consistency with what developers see in the official documentation.
 
-| Ecosystem | Repository                                          | Doc Path        |
-| --------- | --------------------------------------------------- | --------------- |
-| Sui       | [MystenLabs/sui](https://github.com/MystenLabs/sui) | `docs/content/` |
-| Walrus    | [MystenLabs/walrus](https://github.com/MystenLabs/walrus) | `docs/content/` |
-| Seal      | [MystenLabs/seal](https://github.com/MystenLabs/seal) | `docs/content/` |
+| Ecosystem | Repository                                                | Doc Path                 |
+| --------- | --------------------------------------------------------- | ------------------------ |
+| Sui       | [MystenLabs/sui](https://github.com/MystenLabs/sui)       | `docs/content/`          |
+| Walrus    | [MystenLabs/walrus](https://github.com/MystenLabs/walrus) | `docs/content/`          |
+| Seal      | [MystenLabs/seal](https://github.com/MystenLabs/seal)     | `docs/content/`          |
+| TS SDK    | [MystenLabs/ts-sdks](https://github.com/MystenLabs/ts-sdks) | `packages/docs/content/` |
 
 ### Updating the Docs
 
@@ -193,6 +195,7 @@ sui-pilot/
 ├── .sui-docs/                   # 336 Sui documentation files
 ├── .walrus-docs/                # 84 Walrus documentation files
 ├── .seal-docs/                  # 14 Seal documentation files
+├── .ts-sdk-docs/                # 114 TS SDK documentation files
 └── AGENTS.md                    # Doc index for AI discovery
 ```
 

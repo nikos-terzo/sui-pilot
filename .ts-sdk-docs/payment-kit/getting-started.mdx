@@ -1,0 +1,264 @@
+---
+title: Getting Started
+description: Install and set up Payment Kit for your Sui dApp
+---
+
+<Callout type="info">
+	This package is in active development and should be used with caution. APIs are experimental and
+	subject to breaking changes without notice. We recommend thoroughly testing any implementation
+	before using in production environments.
+</Callout>
+
+This guide will help you set up and start using the Payment Kit SDK in your Sui application.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- A Sui wallet with testnet/mainnet SUI tokens
+- Basic understanding of TypeScript and the Sui blockchain
+
+## Installation
+
+Install the Payment Kit SDK and the Sui TypeScript SDK:
+
+```bash npm2yarn
+npm install --save @mysten/payment-kit @mysten/sui
+```
+
+## Setting Up the Client
+
+The Payment Kit SDK extends the standard `SuiGrpcClient` to provide payment functionality. Here's
+how to set it up:
+
+```ts
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { paymentKit } from '@mysten/payment-kit';
+
+// Create a Sui client with Payment Kit extension
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+}).$extend(paymentKit());
+```
+
+The client will automatically configure the correct package IDs for the network you're using
+(testnet or mainnet).
+
+## Your First Payment
+
+Let's process a simple registry-based payment using the default payment registry:
+
+```ts
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+
+// Create or load your keypair
+const keypair = Ed25519Keypair.generate();
+const sender = keypair.getPublicKey().toSuiAddress();
+
+// Create the payment transaction
+const tx = client.paymentKit.tx.processRegistryPayment({
+	nonce: crypto.randomUUID(), // Unique identifier for this payment
+	coinType: '0x2::sui::SUI', // Coin type (SUI in this case)
+	amount: 1n * MIST_PER_SUI, // 1 SUI (in MIST)
+	receiver,
+	sender: sender,
+});
+
+// Sign and execute
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+	options: {
+		showEffects: true,
+		showEvents: true,
+	},
+});
+
+// Check transaction status
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Payment failed: ${result.FailedTransaction.status.error?.message}`);
+}
+
+console.log('Payment processed:', result.Transaction.digest);
+```
+
+## Understanding the Payment
+
+In this example:
+
+1. **Nonce**: A unique identifier (UUIDv4) that prevents duplicate payments when using a registry
+2. **Coin Type**: The type of coin being transferred (SUI token)
+3. **Amount**: The payment amount in the smallest unit (MIST for SUI)
+4. **Receiver**: The address receiving the payment
+5. **Sender**: The address sending the payment (must match the transaction signer)
+6. **Registry Name**: The payment registry to use (defaults to `DEFAULT_REGISTRY_NAME`)
+
+## Verifying the Payment
+
+After processing a payment, you can query the payment record to verify it exists:
+
+```ts
+// Query the payment record
+const paymentRecord = await client.paymentKit.getPaymentRecord({
+	nonce: crypto.randomUUID(),
+	coinType: '0x2::sui::SUI',
+	amount: 1n * MIST_PER_SUI,
+	receiver,
+});
+
+if (paymentRecord) {
+	console.log('Payment verified!');
+	console.log('Transaction:', paymentRecord.paymentTransactionDigest);
+	console.log('Epoch:', paymentRecord.epochAtTimeOfRecord);
+} else {
+	console.log('Payment not found');
+}
+```
+
+## Processing an Ephemeral Payment
+
+If you don't need duplicate prevention or persistent storage, use ephemeral payments:
+
+```ts
+const tx = client.paymentKit.tx.processEphemeralPayment({
+	nonce: crypto.randomUUID(),
+	coinType: '0x2::sui::SUI',
+	amount: 1n * MIST_PER_SUI,
+	receiver,
+	sender: sender,
+});
+
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+
+// Check transaction status
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(`Ephemeral payment failed: ${result.FailedTransaction.status.error?.message}`);
+}
+
+console.log('Ephemeral payment processed:', result.Transaction.digest);
+```
+
+Ephemeral payments:
+
+- Don't create a `PaymentRecord`
+- Don't prevent duplicates
+- Still emit a `PaymentReceipt` event
+- Have lower gas costs
+
+## Working with Different Coin Types
+
+Payment Kit supports any Sui coin type. Here's how to process payments with custom coins:
+
+```ts
+// Example with a custom coin type
+const customCoinType = '0xabcd...::my_coin::MY_COIN';
+
+const tx = client.paymentKit.tx.processRegistryPayment({
+	nonce: crypto.randomUUID(),
+	coinType: customCoinType,
+	amount: 5000,
+	receiver,
+	sender: sender,
+});
+
+// Execute the transaction
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+});
+```
+
+## Error Handling
+
+Always wrap payment operations in try-catch blocks:
+
+```ts
+try {
+	const tx = client.paymentKit.tx.processRegistryPayment({...});
+	const result = await client.signAndExecuteTransaction({
+		transaction: tx,
+		signer: keypair,
+	});
+
+	if (result.$kind === 'FailedTransaction') {
+		throw new Error(`Payment failed: ${result.FailedTransaction.status.error?.message}`);
+	}
+
+	console.log('Success:', result.Transaction.digest);
+} catch (error) {
+	if (error.message.includes('Duplicate')) {
+		console.error('Payment already processed');
+	} else if (error.message.includes('insufficient')) {
+		console.error('Insufficient balance');
+	} else {
+		console.error('Payment failed:', error.message);
+	}
+}
+```
+
+## Creating Payment URIs
+
+Payment Kit provides helper functions to create and parse Payment Kit transaction URIs. These URIs
+are useful for generating payment links, QR codes, or deep links in your application:
+
+```ts
+import { createPaymentTransactionUri } from '@mysten/payment-kit';
+
+// Create a payment URI
+const paymentUri = createPaymentTransactionUri({
+	receiverAddress: '0x123...abc',
+	amount: 1000000000n, // 1 SUI in MIST
+	coinType: '0x2::sui::SUI',
+	nonce: crypto.randomUUID(),
+	label: 'Coffee Payment',
+	message: 'Payment for espresso',
+	registryName: 'my-registry', // Optional: specify a registry name
+	// Or use registryId: '0x...' for a specific registry object ID
+});
+
+console.log(paymentUri);
+// Output: sui:pay?receiver=0x123...abc&amount=1000000000&coinType=0x2%3A%3Asui%3A%3ASUI&nonce=...&label=Coffee%20Payment&message=Payment%20for%20espresso&registry=my-registry
+```
+
+The URI parameters include:
+
+- **receiver**: The Sui address receiving the payment (required)
+- **amount**: The payment amount as a positive bigint (required)
+- **coinType**: The coin type being transferred (required)
+- **nonce**: A unique identifier up to 36 characters (required)
+- **registry**: Either a registry name or object ID (optional)
+- **label**: A short label for the payment (optional)
+- **message**: A longer description message (optional)
+- **iconUrl**: URL to an icon for display purposes (optional)
+
+You can then parse URIs back into payment parameters:
+
+```ts
+import { parsePaymentTransactionUri } from '@mysten/payment-kit';
+
+// Parse a payment URI
+const params = parsePaymentTransactionUri(paymentUri);
+// Returns: { receiverAddress, amount, coinType, nonce, label?, message?, iconUrl?, registryName? | registryId? }
+
+// Use the parsed parameters to create a transaction
+const tx = client.paymentKit.tx.processRegistryPayment({
+	receiver: params.receiverAddress,
+	amount: params.amount,
+	coinType: params.coinType,
+	nonce: params.nonce,
+	registryName: params.registryName,
+	sender: sender,
+});
+```
+
+## Next Steps
+
+Now that you understand the basics, explore more advanced features:
+
+- [Payment Processing](./payment-processing) - Deep dive into payment models
+- [Registry Management](./registry-management) - Create and configure custom registries
+- [SDK API Reference](./payment-kit-sdk) - Complete SDK API documentation
