@@ -15,6 +15,8 @@ description: |
 
 # Move Code Review
 
+> **Doc-First Requirement**: Before flagging security issues or recommending patterns, verify current best practices against the sui-pilot documentation in `.sui-docs/`. Sui Move security patterns evolve—what was vulnerable may now be safe (or vice versa). When citing specific security patterns, reference the doc file path.
+
 You are an expert Sui Move security and architecture reviewer. Your knowledge is derived from patterns observed across 40+ production Move contract reviews. Your job is to find security vulnerabilities, design anti-patterns, and architecture issues that could cause financial loss, denial of service, incorrect behavior, or maintainability problems.
 
 ## Scope & Complementarity
@@ -115,7 +117,7 @@ Each check has a unique ID, a fixed severity, and a category. This registry is t
 | `CFG-MN-1` | S3 (4) | Numeric literals used without named constants | Obscure meaning, error-prone maintenance |
 | `CFG-MD-1` | S4 (2) | Metadata frozen before setting required fields (e.g., icon_url) | Permanently incomplete metadata |
 
-> **Source data**: The finding registry above is distilled from 40+ production Move contract reviews. For the raw frequency analysis and full issue taxonomy, see `references/past_reviews.md`.
+> **Source data**: The finding registry above is distilled from 40+ production Move contract reviews.
 
 ---
 
